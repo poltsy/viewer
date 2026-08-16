@@ -179,6 +179,16 @@ export default {
 					this.width = parentWidth
 					this.height = Math.round(this.naturalHeight / this.naturalWidth * parentWidth)
 
+				// if smaller than the parent in both dimensions, scale it up to fit
+				} else if (heightRatio > 1 && widthRatio > 1) {
+					if (heightRatio < widthRatio) {
+						this.height = parentHeight
+						this.width = Math.round(this.naturalWidth / this.naturalHeight * parentHeight)
+					} else {
+						this.width = parentWidth
+						this.height = Math.round(this.naturalHeight / this.naturalWidth * parentWidth)
+					}
+
 				// RESET
 				} else {
 					this.height = this.naturalHeight
