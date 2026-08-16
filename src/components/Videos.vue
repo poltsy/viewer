@@ -18,6 +18,7 @@
 				:playsinline="true"
 				:poster="livePhotoPath"
 				:src="url"
+				:loop="loopEnabled"
 				preload="metadata"
 				@error.capture.prevent.stop.once="onFail"
 				@ended="donePlaying"
@@ -67,6 +68,8 @@ export default {
 			isFullscreenButtonVisible: false,
 			fallback: false,
 			speedListenerBound: false,
+			loopEnabled: true,
+			loopListenerBound: false,
 		}
 	},
 
@@ -119,6 +122,13 @@ export default {
 				this.player.pause()
 			}
 		},
+		loopEnabled(val) {
+			// Update the loop button appearance based on state
+			const loopButton = this.$el.querySelector('[data-plyr="loop"]')
+			if (loopButton) {
+				loopButton.classList.toggle('plyr__control--active', val)
+			}
+		},
 	},
 
 	// for some reason the video controls don't get mounted to the dom until after the component (Videos) is mounted,
@@ -129,6 +139,31 @@ export default {
 		if (!plyrControls || !plyrControls.length) {
 			return
 		}
+
+		const controlsContainer = this.$el.querySelector('.plyr__controls');
+		if (controlsContainer && !this.$el.querySelector('[data-plyr="loop"]')) {
+			const loopBtn = document.createElement('button');
+			loopBtn.className = 'plyr__control plyr__controls__item';
+			loopBtn.setAttribute('type', 'button');
+			loopBtn.setAttribute('data-plyr', 'loop');
+			loopBtn.setAttribute('aria-label', 'Toggle loop');
+			loopBtn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" /></svg>`;
+			if (this.loopEnabled) {
+				loopBtn.classList.add('plyr__control--active');
+			}
+			const playButton = controlsContainer.querySelector('[data-plyr="play"]');
+			if (playButton) {
+				controlsContainer.insertBefore(loopBtn, playButton.nextSibling);
+			} else {
+				controlsContainer.appendChild(loopBtn);
+			}
+		}
+		const loopButton = this.$el.querySelector('[data-plyr="loop"]');
+		if (loopButton && !this.loopListenerBound) {
+			loopButton.addEventListener('click', this.toggleLoop);
+			this.loopListenerBound = true;
+		}
+
 		[...plyrControls].forEach(control => {
 			if (control.getAttribute('data-plyr') === 'fullscreen') {
 				control.addEventListener('click', this.hideHeaderAndFooter)
@@ -162,6 +197,11 @@ export default {
 		localizeSpeed() {
 			// Defer so we run after Plyr's own label/badge update for this event.
 			this.$nextTick(() => localizeSpeedLabels(this.$el))
+		},
+
+		toggleLoop() {
+			this.loopEnabled = !this.loopEnabled
+			logger.debug('Video loop toggled', { enabled: this.loopEnabled })
 		},
 
 		hideHeaderAndFooter() {
@@ -242,6 +282,17 @@ video {
 			&:hover,
 			&:focus {
 				color: var(--color-primary-element-text);
+				background-color: var(--color-primary-element);
+			}
+		}
+
+		// Loop button active state
+		.plyr__control--active {
+			color: var(--color-primary-element);
+
+			&:hover,
+			&:focus {
+				color: var(--color-main-text);
 				background-color: var(--color-primary-element);
 			}
 		}
