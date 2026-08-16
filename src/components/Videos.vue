@@ -50,6 +50,7 @@ import { findLivePhotoPeerFromName } from '../utils/livePhotoUtils'
 import { getPreviewIfAny } from '../utils/previewUtils'
 import { preloadMedia } from '../services/mediaPreloader.js'
 import { localizeSpeedLabels, plyrTranslations } from '../utils/plyrTranslations'
+import playerSettings from '../services/VideoPlayerSettings.js'
 
 const VuePlyr = () => import(/* webpackChunkName: 'plyr' */'@skjnldsv/vue-plyr')
 
@@ -68,7 +69,8 @@ export default {
 			isFullscreenButtonVisible: false,
 			fallback: false,
 			speedListenerBound: false,
-			loopEnabled: true,
+			settingsListenerBound: false,
+			loopEnabled: playerSettings.state.loop,
 			loopListenerBound: false,
 		}
 	},
@@ -86,11 +88,27 @@ export default {
 		player() {
 			return this.$refs.plyr.player
 		},
+		playerVolume() {
+			return playerSettings.state.volume
+		},
+		playerMuted() {
+			return playerSettings.state.muted
+		},
+		playerLoop() {
+			return playerSettings.state.loop
+		},
+		playerSpeed() {
+			return playerSettings.state.speed
+		},
 		options() {
 			return {
 				autoplay: this.active === true,
 				// Used to reset the video streams https://github.com/sampotts/plyr#javascript-1
 				blankVideo,
+				volume: playerSettings.state.volume,
+				muted: playerSettings.state.muted,
+				speed: { selected: playerSettings.state.speed },
+				storage: { enabled: false },
 				controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'fullscreen'],
 				loadSprite: false,
 				i18n: plyrTranslations,
@@ -127,6 +145,25 @@ export default {
 			const loopButton = this.$el.querySelector('[data-plyr="loop"]')
 			if (loopButton) {
 				loopButton.classList.toggle('plyr__control--active', val)
+			}
+		},
+		// update sibling instance's player settings
+		playerVolume(val) {
+			if (this.player && this.player.volume !== val) {
+				this.player.volume = val
+			}
+		},
+		playerMuted(val) {
+			if (this.player && this.player.muted !== val) {
+				this.player.muted = val
+			}
+		},
+		playerLoop(val) {
+			this.loopEnabled = val
+		},
+		playerSpeed(val) {
+			if (this.player && this.player.speed !== val) {
+				this.player.speed = val
 			}
 		},
 	},
@@ -183,6 +220,18 @@ export default {
 			this.speedListenerBound = true
 		}
 		this.localizeSpeed()
+
+		// Push changes out so sibling (previous/next) instances pick them up
+		if (!this.settingsListenerBound && this.$refs.plyr?.player) {
+			this.player.on('volumechange', () => {
+				playerSettings.setVolume(this.player.volume)
+				playerSettings.setMuted(this.player.muted)
+			})
+			this.player.on('ratechange', () => {
+				playerSettings.setSpeed(this.player.speed)
+			})
+			this.settingsListenerBound = true
+		}
 	},
 
 	beforeDestroy() {
@@ -201,6 +250,7 @@ export default {
 
 		toggleLoop() {
 			this.loopEnabled = !this.loopEnabled
+			playerSettings.setLoop(this.loopEnabled)
 			logger.debug('Video loop toggled', { enabled: this.loopEnabled })
 		},
 
