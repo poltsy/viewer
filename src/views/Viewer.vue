@@ -1195,12 +1195,20 @@ export default defineComponent({
 				emit('files:node:deleted', node)
 
 				// fileid is not unique, basename is not unique, filename is
-				const currentIndex = this.fileList.findIndex(file => file.filename === this.currentFile.filename)
+				const deletedIndex = this.fileList.findIndex(file => file.filename === this.currentFile.filename)
 				if (this.hasPrevious || this.hasNext) {
-					// Checking the previous or next file
-					this.hasNext ? this.next() : this.previous()
+					this.fileList.splice(deletedIndex, 1)
 
-					this.fileList.splice(currentIndex, 1)
+					// index becomes next, or previous if the deleted file was the last one
+					const wasLastFile = deletedIndex > this.fileList.length - 1
+					this.currentIndex = Math.min(deletedIndex, this.fileList.length - 1)
+
+					// same as next() or previous()
+					const fileInfo = this.fileList[this.currentIndex]
+					this.openFileFromList(fileInfo)
+					wasLastFile ? this.Viewer.onPrev(fileInfo) : this.Viewer.onNext(fileInfo)
+
+					this.updateTitle(this.currentFile.basename)
 				} else {
 					this.close()
 				}
